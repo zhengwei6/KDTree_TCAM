@@ -85,11 +85,13 @@ public:
 	KdTreeH(vector <Point> *points_ptr,vector <int> *index_ptr,int max_leaf_size, int para_NN);
 	~KdTreeH();	
 	void BuildKDTree();
+	void BuildKDTreeV1();
 	void print_param();
 	void print_pcount();
 	void print_bcount();
 	void print_points(int i);
-	void NearestKSearchV2(Point query, int knn, vector<NearestInfo> &k_elements);
+	void print_leaf_node_num();
+	void NearestKSearchTCAM(Point query, int knn, vector<NearestInfo> &k_elements);
 	int  NearestKSearch(Point query, int knn,vector<int> &k_indices, vector<int> &k_Dists);
 	void BruteForceKSearchV2(vector<int> *ind, Point query, KnnQueue &k_priority_queue, int knn);	
 	void BruteForceKSearch(vector<int> ind, Point query, vector<int> &k_indices, vector<int> &k_Dists);
@@ -112,6 +114,7 @@ private:
 	vector<NearestInfo> QueueCopy(KnnQueue &k_queue);
 	int GetDistance(Point point, Point centroid);
 	int Dist(Point p1, Point p2);
+	NodePtr DivideTreeV1(int left, int right, vector<Interval> *bbox_ptr);
 	NodePtr DivideTree(int left, int right, vector<Interval> *bbox_ptr);
 	void FindSplitDim(int &best_dim, int &span, vector<Interval> *bbox_ptr);
     void GetValueList(int left, int right, int split_dim, vector<int> &value_list);

@@ -1,4 +1,5 @@
 #include "intkd_tree.h"
+
 KdTreeH::KdTreeH(
         ::vector <Point> *points_ptr, \
         ::vector <int> *index_ptr, \
@@ -22,10 +23,24 @@ void Node::deleteNode(Node * node_p) {
     delete node_p;
 }
 	
+
+void KdTreeH::BuildKDTreeV1()
+{
+	vector<Interval> bbox;
+	vector<Interval> *bbox_ptr = NULL;
+
+	int left  = 0;
+	int right = (index_->size()) - 1;
+	ComputeBoundingBox(left, right, bbox);
+	
+	bbox_ptr = &bbox;
+	root_node_ = DivideTreeV1(left, right, bbox_ptr); 
+}
+
 void KdTreeH::BuildKDTree() 
 {
-	::vector<Interval> bbox;
-	::vector<Interval> *bbox_ptr = NULL;
+	vector<Interval> bbox;
+	vector<Interval> *bbox_ptr = NULL;
 
 	int left = 0;
 	int right = (index_->size()) - 1;
@@ -37,8 +52,8 @@ void KdTreeH::BuildKDTree()
 
 void KdTreeH::print_param()
 {
-	::cout << "index size: " << (*index_).size() << ::endl;
-	::cout << "points number: " << (*points_).size() << ::endl;
+	cout << "index size: " << (*index_).size() << ::endl;
+	cout << "points number: " << (*points_).size() << ::endl;
 }
 
 void KdTreeH::print_pcount()
@@ -53,11 +68,17 @@ void KdTreeH::print_bcount()
 
 void KdTreeH::print_points(int i)
 {
-	::cout << "point x: " << (*points_)[i][0] << " point.y: " << (*points_)[i][1] << " point.z: " << (*points_)[i][2] << ::endl;
+	cout << "point x: " << (*points_)[i][0] << " point.y: " << (*points_)[i][1] << " point.z: " << (*points_)[i][2] << ::endl;
 	return;
 }
 
-void KdTreeH::NearestKSearchV2(Point query, int knn, vector<NearestInfo> &k_elements)
+void KdTreeH::print_leaf_node_num()
+{
+	cout << "leaf_nodes_: " << leaf_nodes_.size() << endl;	
+}
+
+
+void KdTreeH::NearestKSearchTCAM(Point query, int knn, vector<NearestInfo> &k_elements)
 {
 	KnnQueue kd_queue;
 	NodePtr cur_node = root_node_;
@@ -131,27 +152,71 @@ int KdTreeH::NearestKSearch(Point query, int knn,\
 	::vector<int> &k_indices, \
 	::vector<int> &k_Dists)
 {
+	clock_t c_start, c_end;
+	long brute_force_search_time = 0;
+	long back_track_time = 0;
+	
 	int back_track = 0;
-	::vector<NodePtr> backtrack_stack;
+	vector<NodePtr> backtrack_stack;
 	
 	NodePtr cur_node = root_node_;
+	
+	c_start = clock();
 	cur_node = TraverseTree(cur_node, query, backtrack_stack);
+	c_end   = clock();
 
+	back_track_time +=  (c_end - c_start) ;
+
+	c_start = clock();
 	BruteForceKSearch(cur_node->index_list, query, k_indices, k_Dists);
+	c_end   = clock();
+	cout << "Traverse to first point " << endl;
+	print_points(k_indices[0]);
+	cout << "Dist to first data point: " << k_Dists[0] << endl ;
+	cout << "Backtrack stack size: " << backtrack_stack.size() << endl << endl;
+	brute_force_search_time += (c_end - c_start);
 	for(;backtrack_stack.size();)
 	{
+		cout << "Backtrack" << endl;
 		cur_node = backtrack_stack.back();
 		backtrack_stack.pop_back();
 		int Dist_min_ = k_Dists[0];
+		cout << "check intersection" << endl;
 		bool visit_ = CheckIntersection(query, Dist_min_, cur_node);
+		// test
+		cout << "Dim1: " << (cur_node->bbox)[0].low << " " << (cur_node->bbox)[0].high << endl;
+		cout << "Dim2: " << (cur_node->bbox)[1].low << " " << (cur_node->bbox)[1].high << endl;
+		cout << "Dim3: " << (cur_node->bbox)[2].low << " " << (cur_node->bbox)[2].high << endl;
 		if(visit_)
 		{
+			cout << "Traverse the tree from the node" << endl;
 			back_track += 1;
-			if (cur_node->s_dim != 1)
+			if (cur_node->s_dim != 1) {
+				c_start = clock();
 				cur_node = TraverseTree(cur_node, query, backtrack_stack);
+				c_end   = clock();
+				back_track_time += (c_end - c_start);
+			}
+			c_start = clock();
 			BruteForceKSearch(cur_node->index_list, query, k_indices, k_Dists);
+			c_end   = clock();
+			brute_force_search_time += (c_end - c_start);
+			//cout << brute_force_search_time << endl;
 		}
+		else {
+			cout << "Prune the node" << endl;
+		}
+		cout << endl;
 	}
+
+	back_track_time 		= (back_track_time * (1000.0)) / CLOCKS_PER_SEC;
+	brute_force_search_time = (brute_force_search_time * (1000.0)) / CLOCKS_PER_SEC;
+
+	// #ifdef DEBUG
+	cout << "traverse tree time: " << back_track_time << endl;
+	cout << "brute force time: " << brute_force_search_time << endl;
+	// #endif
+	cout << "back_track: " << back_track << endl;
 	return back_track;
 }
 
@@ -199,7 +264,6 @@ void KdTreeH::BruteForceKSearch(::vector<int> ind, Point query, \
 	}
 }
 
-
 ::vector<KdTreeH::NearestInfo> KdTreeH::QueueCopy(KnnQueue &k_queue)
 {
 	::vector<NearestInfo> copy;
@@ -218,6 +282,49 @@ int KdTreeH::GetDistance(Point point, Point centroid) {
 int KdTreeH::Dist(Point p1, Point p2) {
 	return sqrt(pow((p1.x - p2.x), 2)\
 			+ pow((p1.y - p2.y), 2) + pow((p1.z - p2.z), 2));
+}
+
+KdTreeH::NodePtr KdTreeH::DivideTreeV1(int left, int right, ::vector<Interval> *bbox_ptr) {
+	NodePtr node = new Node();
+	// save parent's indexs in index_list
+	for(int i = left; i<= right; i++) {
+		(node->index_list).push_back((*index_)[i]);
+	}
+	// parent decide bounding box for child
+	node->bbox = *bbox_ptr;
+	int count = right - left;
+	if(count <= max_leaf_size_) {
+		node->s_dim = -1;
+		node->s_val = -1;
+		node->leaf_idx = leaf_nodes_.size() - 1;
+		return node;
+	}
+	else {
+		int split_dim = 0;
+		int span = 0;
+		vector<int> value_list;
+		FindSplitDim(split_dim, span, bbox_ptr);
+		node->s_dim = split_dim;
+		int split_val = 0;
+		// test
+		// copy the value list range to value_list: left to right
+		GetValueList(left, right, split_dim, value_list);
+		vector<int>* value_list_ptr = &value_list;
+		QSelectMedian(value_list_ptr, split_val);
+		node->s_val = split_val;
+
+		int lim1 = 0, lim2 = 0, split_delta = 0;
+		// PlaneSplit: swap index
+		PlaneSplit(left, right, split_dim, split_val, lim1, lim2);
+		split_delta = (lim1 + lim2) / 2;
+		vector<Interval> bbox_l;
+		vector<Interval> bbox_r;
+		ComputeBoundingBox(left, left + split_delta, bbox_l);
+		ComputeBoundingBox(left + split_delta + 1, right, bbox_r);
+		node->left_child  = DivideTreeV1(left, left + split_delta, &bbox_l);
+		node->right_child = DivideTreeV1(left + split_delta + 1, right, &bbox_r);
+		return node;
+	}
 }
 
 KdTreeH::NodePtr KdTreeH::DivideTree(int left, int right, ::vector<Interval> *bbox_ptr) {
@@ -270,14 +377,14 @@ KdTreeH::NodePtr KdTreeH::DivideTree(int left, int right, ::vector<Interval> *bb
 	else {
 		int split_dim = 0;
 		int span = 0;
-		::vector<int> value_list;
+		vector<int> value_list;
 		FindSplitDim(split_dim, span, bbox_ptr);
 		node->s_dim = split_dim;
 		int split_val = 0;
 		// test
 		// copy the value list range to value_list: left to right
 		GetValueList(left, right, split_dim, value_list);
-		::vector<int>* value_list_ptr = &value_list;
+		vector<int>* value_list_ptr = &value_list;
 		QSelectMedian(value_list_ptr, split_val);
 		node->s_val = split_val;
 
@@ -290,8 +397,8 @@ KdTreeH::NodePtr KdTreeH::DivideTree(int left, int right, ::vector<Interval> *bb
 		// PlaneSplit: swap index
 		PlaneSplit(left, right, split_dim, split_val, lim1, lim2);
 		split_delta = (lim1 + lim2) / 2;
-		::vector<Interval> bbox_l;
-		::vector<Interval> bbox_r;
+		vector<Interval> bbox_l;
+		vector<Interval> bbox_r;
 		ComputeBoundingBox(left, left + split_delta, bbox_l);
 		ComputeBoundingBox(left + split_delta + 1, right, bbox_r);
 		node->left_child = DivideTree(left, left + split_delta, &bbox_l);
@@ -412,7 +519,7 @@ void KdTreeH::ComputeMinMax(int left, int right, int dim, int& min_val, int& max
 
 	/*traverse tree */
 KdTreeH::NodePtr KdTreeH::TraverseTree(NodePtr cur_node, Point query, \
-	::vector<Node *> & backtrack_stack)
+	vector<Node *> & backtrack_stack)
 {
 	while(cur_node->s_dim != -1) {
 		int s_dim = cur_node->s_dim;
@@ -432,6 +539,7 @@ KdTreeH::NodePtr KdTreeH::TraverseTree(NodePtr cur_node, Point query, \
 
 bool KdTreeH::CheckIntersection(Point query, int radius, NodePtr cur_node)
 {
+	cout << "radius: "<< radius << endl;
 	int Dist_squared = radius * radius;
 	
 	int x_min = (cur_node->bbox)[0].low;
@@ -457,7 +565,7 @@ bool KdTreeH::CheckIntersection(Point query, int radius, NodePtr cur_node)
 		Dist_squared -= (query.z - z_min) * (query.z - z_min);
 	else if (query.z > z_max)
 		Dist_squared -= (query.z - z_max) * (query.z - z_max);
-	
+	cout << "Dist_squared: "<< Dist_squared << endl;
 	return Dist_squared > 0;
 }
 
