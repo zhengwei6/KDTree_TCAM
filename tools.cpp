@@ -1,4 +1,5 @@
 #include "tools.h"
+#include "intkd_tree.h"
 void DirectConversion(int start, int end, vector<pair<int, int>> &prefix_entries) {
     vector<int> vect_rec(end + 2, 0);
     for(int i = start ; i <= end ; i++) {

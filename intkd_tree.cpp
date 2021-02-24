@@ -3,7 +3,7 @@
 KdTreeH::KdTreeH(
         ::vector <Point> *points_ptr, \
         ::vector <int> *index_ptr, \
-        int max_leaf_size, int para_NN):dim_(3), prefix_trie_dim1(), prefix_trie_dim2(), prefix_trie_dim3()
+        int max_leaf_size, int para_NN):dim_(3), prefix_trie_dim1(), prefix_trie_dim2(), prefix_trie_dim3(), prefix_conversion_time(0)
 {
         index_ = index_ptr;
         points_ = points_ptr;
@@ -77,6 +77,15 @@ void KdTreeH::print_leaf_node_num()
 	cout << "leaf_nodes_: " << leaf_nodes_.size() << endl;	
 }
 
+void KdTreeH::print_prefix_conversion_time()
+{
+	cout << "prefix_conversion_time: " << (prefix_conversion_time * 1000.0) / CLOCKS_PER_SEC  << endl;
+} 
+
+void KdTreeH::print_insert_prefix_time()
+{
+	cout << "insert_prefix_time: " << (insert_prefix_time * 1000.0) / CLOCKS_PER_SEC << endl;
+}
 
 void KdTreeH::NearestKSearchTCAM(Point query, int knn, vector<NearestInfo> &k_elements)
 {
@@ -125,6 +134,8 @@ void KdTreeH::NearestKSearchTCAM(Point query, int knn, vector<NearestInfo> &k_el
 	z_range.second  = (query.z - Dist_min_) > 0 ? (query.z - Dist_min_) : 0;
 
 	// direction conversion
+	clock_t c_start, c_end;
+	
 	DirectConversion(x_range.second, x_range.first, prefix_range_x);
 	DirectConversion(y_range.second, y_range.first, prefix_range_y);
 	DirectConversion(z_range.second, z_range.first, prefix_range_z);
@@ -284,7 +295,7 @@ int KdTreeH::Dist(Point p1, Point p2) {
 			+ pow((p1.y - p2.y), 2) + pow((p1.z - p2.z), 2));
 }
 
-KdTreeH::NodePtr KdTreeH::DivideTreeV1(int left, int right, ::vector<Interval> *bbox_ptr) {
+KdTreeH::NodePtr KdTreeH::DivideTreeV1(int left, int right, vector<Interval> *bbox_ptr) {
 	NodePtr node = new Node();
 	// save parent's indexs in index_list
 	for(int i = left; i<= right; i++) {
@@ -349,14 +360,20 @@ KdTreeH::NodePtr KdTreeH::DivideTree(int left, int right, ::vector<Interval> *bb
 			vector<pair<int, int>> prefix_range;
 			
 			#ifdef DEBUG
-			::cout << "dimension: " << i << ""<< ::endl;
+			cout << "dimension: " << i << ""<< ::endl;
 			cout << "interval: low " <<  (*bbox_ptr)[i].low << " interval: high " << (*bbox_ptr)[i].high << endl;
 			#endif
-			
+			clock_t c_start, c_end;
+			c_start = clock();
 			DirectConversion((*bbox_ptr)[i].low, (*bbox_ptr)[i].high, prefix_range);
-			// PrintStack(prefix_range);
+			c_end   = clock();
+			 
+			prefix_conversion_time += (c_end - c_start);
 			for (int j = 0 ; j < prefix_range.size() ; j++) {
+				c_start = clock();
 				InsertPrefixTrieDim(i, prefix_range[j].first << prefix_range[j].second , prefix_range[j].second, node->leaf_idx);		
+				c_end   = clock();
+				insert_prefix_time += (c_end - c_start);
 			}
 		}
 		for(const auto &k : node->index_list) {
@@ -576,3 +593,34 @@ void KdTreeH::InsertPrefixTrieDim(int dim, int num, int prefix_num, int leaf_ind
 	return;
 }
 
+void load_bin(std::string infile, std::vector<Point> & points)
+{
+	std::cout << "Loading " << infile << std::endl;
+
+	std::fstream input(infile.c_str(), std::ios::in | std::ios::binary);
+
+	if(!input.good()){
+		std::cerr << "Could not read file: " << infile << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	input.seekg(0, std::ios::beg);
+
+	for (int j=0; input.good() && !input.eof(); j++) {
+		
+		Point_f point; 
+		Point point_gt;
+
+		input.read((char *) &point.x, 3 * sizeof(float));
+		input.seekg(sizeof(float), std::ios::cur);    
+        float x, y ,z;
+        x = -point.y;
+        y = -point.z;
+        z = point.x;
+        
+		point_gt.x = (int)((x + 100) * 10);
+        point_gt.y = (int)((y + 100) * 10);
+        point_gt.z = (int)((z + 100) * 10);
+		points.push_back(point_gt);
+	}
+	input.close();
+}

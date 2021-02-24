@@ -41,6 +41,28 @@ public:
     }
 };
 
+struct Point_f {
+public:
+	float x;
+	float y;
+	float z;
+
+	int dim; // dimension
+
+	// to-do: add normal information
+	Point_f () : \
+	x(.0), y(.0), z(.0), dim(3) {}
+public:
+	float operator[] (int i) {
+		if (i == 0) return x;
+		if (i == 1) return y;
+		if (i == 2) return z;
+
+		// Default: return z value 
+		return z;
+	}
+};
+
 struct Node
 {
     int s_dim; // split dim
@@ -91,6 +113,8 @@ public:
 	void print_bcount();
 	void print_points(int i);
 	void print_leaf_node_num();
+	void print_prefix_conversion_time();
+	void print_insert_prefix_time();
 	void NearestKSearchTCAM(Point query, int knn, vector<NearestInfo> &k_elements);
 	int  NearestKSearch(Point query, int knn,vector<int> &k_indices, vector<int> &k_Dists);
 	void BruteForceKSearchV2(vector<int> *ind, Point query, KnnQueue &k_priority_queue, int knn);	
@@ -110,6 +134,8 @@ private:
     int para_NN_;
 	int pcount = 0; // counting for points
 	int bcount = 0; // counting for bounding box
+	long prefix_conversion_time = 0;
+	long insert_prefix_time     = 0;
 
 	vector<NearestInfo> QueueCopy(KnnQueue &k_queue);
 	int GetDistance(Point point, Point centroid);
@@ -128,4 +154,5 @@ private:
 	bool CheckIntersection(Point query, int radius, NodePtr cur_node);
 	void InsertPrefixTrieDim(int dim, int num, int prefix_num, int leaf_index);
 };
+void load_bin(std::string infile, std::vector<Point> & points);
 #endif

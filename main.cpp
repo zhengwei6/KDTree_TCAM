@@ -18,7 +18,7 @@
 using namespace std;
 vector<Point> *randomPoints(int number, int min, int max)
 {
-	vector<Point> *Ps = new vector<Point>;
+	vector<Point> *points_reference_ptr = new vector<Point>;
 	struct Point *Ptmp;
 	random_device rd;
 	default_random_engine eng(rd());
@@ -29,24 +29,24 @@ vector<Point> *randomPoints(int number, int min, int max)
 		(*Ptmp).x = distr(eng);
 		(*Ptmp).y = distr(eng);
 		(*Ptmp).z = distr(eng);
-		(*Ps).push_back((*Ptmp));
+		(*points_reference_ptr).push_back((*Ptmp));
 	}
 	
-	return Ps;
+	return points_reference_ptr;
 }
 
 vector<Point> *testPoints(int max)
 {
-	vector<Point> *Ps = new vector<Point>;
+	vector<Point> *points_reference_ptr = new vector<Point>;
 	struct Point *Ptmp;
 	for(int i = 0 ; i < max ; i += 10) {
 		Ptmp = new Point();
 		(*Ptmp).x = 1;
 		(*Ptmp).y = i;
 		(*Ptmp).z = 1;
-		(*Ps).push_back((*Ptmp));
+		(*points_reference_ptr).push_back((*Ptmp));
 	}
-	return Ps;
+	return points_reference_ptr;
 }
 
 Point randomPoint(int min, int max)
@@ -65,38 +65,55 @@ int main() {
 	
 	clock_t c_start;
 	clock_t c_end;
-	cout << "Generate " << 1000000 << " data points" << endl;
-	vector<Point> *Ps = randomPoints(1000000, 0, 65535);
-	cout << "The range of the data point values: " << 0 << " to " << 65535 << endl;
+	string dataset_dir = "./sample/";
+	string data_reference = dataset_dir + "000000.bin";
+	string data_query = dataset_dir + "000001.bin";
 
-	//vector<Point> *Ps = testPoints(1000);
-	// genrerate point 1 10 1, 1 20 1, 1 30 1
+	vector<Point> points_reference;
+	vector<Point> * points_reference_ptr = &points_reference;
+	vector<Point> points_query;
+	vector<Point> * points_query_ptr = &points_query;
+
+	load_bin(data_reference, points_reference);
+	cout << "Number of Points Loaded: " << points_reference.size() << std::endl;
+	
+	load_bin(data_query, points_query);
+	cout << "Number of Points Loaded: " << points_query.size() << std::endl;
+
+	// cout << "Generate " << 1000000 << " data points" << endl;
+	// vector<Point> *points_reference_ptr = randomPoints(1000000, 0, 65535);
+	// cout << "The range of the data point values: " << 0 << " to " << 65535 << endl;
 	vector<KdTreeH::NearestInfo> k_kd_elements;
 	vector<int> *Index = new vector<int>;
-	for(int i = 0 ; i < 1000000 ; i++) {
+	for(int i = 0 ; i < points_reference.size() ; i++) {
 	 	(*Index).push_back(i);
  	}
-	
 	// kd tree constructor
-	// KdTreeH kd_tree(Ps, Index, 10, 10);
+	// KdTreeH kd_tree(points_reference_ptr, Index, 10, 10);
 	// create TCAM entries
-	Point query = randomPoint(0, 65535);
+	Point query = points_query[1000];
+	//Point query = randomPoint(0, 65535);
 	cout << "Generate query points: query.x: " << query.x << " query.y: " << query.y << " query.z: " << query.z << endl; 
 	cout << "-----------------------------------------------------------------------" << endl;
-	KdTreeH general_kd_tree1(Ps, Index, 10, 10);
+	
+	KdTreeH general_kd_tree1(points_reference_ptr, Index, 10, 10);
 	cout << "Brute Force Search..." << flush;
+
 	c_start = clock();
 	KdTreeH::KnnQueue k_brute_queue;
 	general_kd_tree1.BruteForceKSearchV2(Index, query, k_brute_queue, 1);
-
-
-
+	c_end = clock();
+	cout << "Complete" << endl;
+	cout << "Ans: ";
+	general_kd_tree1.print_points(k_brute_queue.top().first);
+	cout << "Brute force search time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
 	// brute force search
 	//cout << "Brute Force Search..." << flush;
 	cout << "-----------------------------------------------------------------------" << endl;
+	return 1;
 	// build general kd tree
 	// KD Tree constructor
-	KdTreeH general_kd_tree(Ps, Index, 10, 10);
+	KdTreeH general_kd_tree(points_reference_ptr, Index, 10, 10);
 	c_start = clock();
 	general_kd_tree.BuildKDTreeV1();
 	c_end   = clock();
@@ -111,8 +128,27 @@ int main() {
 	c_end   = clock();
 
 	cout << "total search time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
+	cout << "Ans: ";
+	general_kd_tree.print_points(k_indices[0]);
 	cout << "-----------------------------------------------------------------------" << endl;
+	cout << "KD Tree Nearest Neighbor Search with TCAM" << endl;
+	KdTreeH kd_tree_tcam(points_reference_ptr, Index, 10, 10);
+	// build time
+	c_start = clock();
+	kd_tree_tcam.BuildKDTree();
+	c_end   = clock();
+	cout << "total build time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
 	
+	cout << "prefix conversion time: ";
+	kd_tree_tcam.print_prefix_conversion_time();
+	cout << "insert_prefix_time: ";
+	kd_tree_tcam.print_insert_prefix_time();
+	
+	c_start = clock();
+	kd_tree_tcam.NearestKSearchTCAM(query, 1, k_kd_elements);
+	c_end   = clock();
+	
+	cout << "total search time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
 
 
 	// // brute force search
@@ -132,9 +168,7 @@ int main() {
 	// c_end = clock();
 	// cout << "complete" << endl;
 	// cout << "time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
-
-	// //build time
-	
+	// //build time	
 	// #ifdef DEBUG
 	// kd_tree.print_pcount();
 	// kd_tree.print_bcount();
@@ -179,7 +213,7 @@ int main() {
 	//kd_tree.NearestKSearchTCAM(query, 10, k_kd_elements);
 
 	// for(int k = 0 ; k < 10; k++) {	
-	// 	vector<Point> *Ps = randomPoints(100000, 0, 65535);
+	// 	vector<Point> *points_reference_ptr = randomPoints(100000, 0, 65535);
 
 
 	// 	KdTreeH::KnnQueue k_brute_queue;
@@ -188,7 +222,7 @@ int main() {
 	// 	for(int i = 0 ; i < 100000 ; i++) {
 	// 		(*Index).push_back(i);
 	// 	}
-	// 	KdTreeH kd_tree(Ps, Index, 10, 10);
+	// 	KdTreeH kd_tree(points_reference_ptr, Index, 10, 10);
 	// 	kd_tree.BuildKDTree();
 	// 	struct Point query = randomPoint(0, 65535);
 	// 	clock_t c_start = clock();
