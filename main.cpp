@@ -80,168 +80,92 @@ int main() {
 	load_bin(data_query, points_query);
 	cout << "Number of Points Loaded: " << points_query.size() << std::endl;
 
-	// cout << "Generate " << 1000000 << " data points" << endl;
-	// vector<Point> *points_reference_ptr = randomPoints(1000000, 0, 65535);
-	// cout << "The range of the data point values: " << 0 << " to " << 65535 << endl;
-	vector<KdTreeH::NearestInfo> k_kd_elements;
+	int query_num = points_query.size();
+	vector<vector<KdTreeH::NearestInfo> > k_kd_elements;
 	vector<int> *Index = new vector<int>;
 	for(int i = 0 ; i < points_reference.size() ; i++) {
 	 	(*Index).push_back(i);
  	}
-	// kd tree constructor
-	// KdTreeH kd_tree(points_reference_ptr, Index, 10, 10);
-	// create TCAM entries
-	Point query = points_query[1000];
-	//Point query = randomPoint(0, 65535);
-	cout << "Generate query points: query.x: " << query.x << " query.y: " << query.y << " query.z: " << query.z << endl; 
+	std::vector< std::vector<int> > k_indices;
+	std::vector< std::vector<int> > k_dists; 
 	cout << "-----------------------------------------------------------------------" << endl;
-	
-	KdTreeH general_kd_tree1(points_reference_ptr, Index, 10, 10);
-	cout << "Brute Force Search..." << flush;
 
+	cout << "Brute Force Search" << endl;
+	KdTreeH general_kd_tree1(points_reference_ptr, Index, 10, 10);
+	k_indices.resize(query_num);
+	k_dists.resize(query_num);
 	c_start = clock();
-	KdTreeH::KnnQueue k_brute_queue;
-	general_kd_tree1.BruteForceKSearchV2(Index, query, k_brute_queue, 1);
+	for(int i = 0 ; i < query_num ; i++) {
+		general_kd_tree1.BruteForceKSearch(*Index, points_query[i], k_indices[i], k_indices[i]);
+	}
 	c_end = clock();
 	cout << "Complete" << endl;
-	cout << "Ans: ";
-	general_kd_tree1.print_points(k_brute_queue.top().first);
 	cout << "Brute force search time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
-	// brute force search
-	//cout << "Brute Force Search..." << flush;
+	cout << "Ans: ";
+	general_kd_tree1.print_points(k_indices[0][0]);
+	k_indices.clear();
+	k_dists.clear();
+	k_indices.resize(query_num);
+	k_dists.resize(query_num);
+
 	cout << "-----------------------------------------------------------------------" << endl;
-	return 1;
+	int back_track = 0;
+	cout << "Classic KD Tree Nearest Neighbor Search" << endl;
 	// build general kd tree
 	// KD Tree constructor
+	k_indices.resize(query_num);
+	k_dists.resize(query_num);
 	KdTreeH general_kd_tree(points_reference_ptr, Index, 10, 10);
 	c_start = clock();
 	general_kd_tree.BuildKDTreeV1();
 	c_end   = clock();
-	cout << "Build kd tree time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
-	// general kd tree search
-	vector<int> k_indices;
-	vector<int> k_Dists;
-	cout << "Classic KD Tree search:" << endl << endl;
+	cout << "Building Tree: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
+	// // general kd tree search
+	general_kd_tree.print_leaf_node_num(); 
+	cout << "Classic KD Tree search...";
 
 	c_start = clock();
-	general_kd_tree.NearestKSearch(query, 1, k_indices, k_Dists);
+	for(int i = 0 ; i < query_num ; i++) {
+		back_track += general_kd_tree.NearestKSearch(points_query[i], 1, k_indices[i], k_dists[i]);
+	}
 	c_end   = clock();
-
-	cout << "total search time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
+	cout << "Backtrack: " << back_track << endl;
+	cout << "Complete" << endl;
+	cout << "Classic KD Tree search time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
 	cout << "Ans: ";
-	general_kd_tree.print_points(k_indices[0]);
+	general_kd_tree.print_points(k_indices[0][0]);
+	k_indices.clear();
+	k_dists.clear();
+	back_track = 0;
 	cout << "-----------------------------------------------------------------------" << endl;
+	k_kd_elements.resize(query_num);
+	k_indices.resize(query_num);
+	k_dists.resize(query_num);
 	cout << "KD Tree Nearest Neighbor Search with TCAM" << endl;
 	KdTreeH kd_tree_tcam(points_reference_ptr, Index, 10, 10);
-	// build time
+	// // build time
 	c_start = clock();
 	kd_tree_tcam.BuildKDTree();
 	c_end   = clock();
-	cout << "total build time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
+	kd_tree_tcam.print_store_prefix_count();
+	cout << "Building Tree: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
 	
-	cout << "prefix conversion time: ";
 	kd_tree_tcam.print_prefix_conversion_time();
-	cout << "insert_prefix_time: ";
 	kd_tree_tcam.print_insert_prefix_time();
 	
+
 	c_start = clock();
-	kd_tree_tcam.NearestKSearchTCAM(query, 1, k_kd_elements);
+	for(int i = 0 ; i < query_num ; i++) {
+		kd_tree_tcam.NearestKSearchTCAM(points_query[i], 1, k_kd_elements[i]);
+	}
 	c_end   = clock();
-	
+
+	kd_tree_tcam.print_search_prefix_conversion_time();
+	kd_tree_tcam.print_search_prefix_count();
+
 	cout << "total search time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
-
-
-	// // brute force search
-	// cout << "Brute Force Search..." << flush;
-	// c_start = clock();
-	// KdTreeH::KnnQueue k_brute_queue;
-	// kd_tree.BruteForceKSearchV2(Index, query, k_brute_queue, 1);
-	// cout << "complete" << endl;
-	// cout << "index: " << k_brute_queue.top().first << " dist: " << k_brute_queue.top().second << " ";
-	// kd_tree.print_points(k_brute_queue.top().first);
-	// c_end = clock();
-	// cout << "time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
-	
-	// cout << "Build KD Tree..." << flush;
-	// c_start = clock();
-	// kd_tree.BuildKDTree();
-	// c_end = clock();
-	// cout << "complete" << endl;
-	// cout << "time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
-	// //build time	
-	// #ifdef DEBUG
-	// kd_tree.print_pcount();
-	// kd_tree.print_bcount();
-	// #endif
-	// // brute f
-	// // print query point
-	// // general kd tree search
-
-	// #ifdef DEBUG
-	// cout << "--------------KD Tree Nearest Neighbor Search -------------" << endl;
-	// #endif
-
-	// kd_tree.NearestKSearchTCAM(query, 1, k_kd_elements);
-	
-	// #ifdef DEBUG
-	// cout << "--------Complete KD Tree Nearest Neighbor Search----------" << endl << endl;
-	// #endif
-	
-	// #ifdef DEBUG
-	// cout << "------Brute Force KD Tree Nearest Neighbor Search---------" << endl;
-	// #endif
-	// // KdTreeH::KnnQueue k_brute_queue;
-	// // kd_tree.bruteForceKSearchV2(Index, query, k_brute_queue, 1);
-	// // cout << "index: " << k_brute_queue.top().first << " dist: " << k_brute_queue.top().second << " ";
-	// // kd_tree.print_points(k_brute_queue.top().first);
-	
-	// #ifdef DEBUG
-	// cout << "-----End of Brute Force Search----------------------------" << endl << endl;
-	// #endif
-
-	// #ifdef DEBUG
-	// cout << "--------------Nearest Data Point Info----------------------" << endl; 
-	// cout << "query: " << "query.x: " << query.x << " query.y: " << query.y << " query.z: " << query.z << endl;
-	// cout << "index: " << k_kd_elements[0].first << " dist: " << k_kd_elements[0].second << " ";
-	// kd_tree.print_points(k_kd_elements[0].first);
-	// cout << "----------End of Nearest Data Point Info-------------------" << endl << endl;
-	// #endif
-
-	//brute force search
-
-
-	//kd_tree.NearestKSearchTCAM(query, 10, k_kd_elements);
-
-	// for(int k = 0 ; k < 10; k++) {	
-	// 	vector<Point> *points_reference_ptr = randomPoints(100000, 0, 65535);
-
-
-	// 	KdTreeH::KnnQueue k_brute_queue;
-	// 	vector<KdTreeH::NearestInfo> k_kd_elements;
-	// 	vector<int> *Index = new vector<int>;
-	// 	for(int i = 0 ; i < 100000 ; i++) {
-	// 		(*Index).push_back(i);
-	// 	}
-	// 	KdTreeH kd_tree(points_reference_ptr, Index, 10, 10);
-	// 	kd_tree.BuildKDTree();
-	// 	struct Point query = randomPoint(0, 65535);
-	// 	clock_t c_start = clock();
-	// 	kd_tree.bruteForceKSearchV2(Index, query, k_brute_queue, 1);
-	// 	clock_t c_end = clock();
-	// 	cout << "brute force search" << endl;
-	// 	cout << "random query point: " << "query point.x: " << query.x << " query point.y: " << query.y << " query point.z: " << query.z << endl;
-	// 	cout << "index: " << k_brute_queue.top().first << " dist: " << k_brute_queue.top().second << " ";
-	// 	cout << "execution time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
-	// 	kd_tree.print_points(k_brute_queue.top().first);
-
-	// 	c_start = clock();
-	// 	kd_tree.NearestKSearchTCAM(query, 10, k_kd_elements);
-	// 	c_end = clock();
-	// 	cout << "kd tree search" << endl;
-	// 	cout << "index: " << k_kd_elements[0].first << " dist: " << k_kd_elements[0].second << " ";
-	// 	cout << "execution time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
-	// 	kd_tree.print_points(k_kd_elements[0].first);
-	// 	cout << endl;
-    // }
+	cout << "Ans: ";
+	kd_tree_tcam.print_points(k_kd_elements[0][0].first);
+	cout << "-----------------------------------------------------------------------" << endl;
 	return 1;
 }

@@ -115,6 +115,9 @@ public:
 	void print_leaf_node_num();
 	void print_prefix_conversion_time();
 	void print_insert_prefix_time();
+	void print_search_prefix_conversion_time();
+	void print_search_prefix_count();
+	void print_store_prefix_count();
 	void NearestKSearchTCAM(Point query, int knn, vector<NearestInfo> &k_elements);
 	int  NearestKSearch(Point query, int knn,vector<int> &k_indices, vector<int> &k_Dists);
 	void BruteForceKSearchV2(vector<int> *ind, Point query, KnnQueue &k_priority_queue, int knn);	
@@ -136,6 +139,9 @@ private:
 	int bcount = 0; // counting for bounding box
 	long prefix_conversion_time = 0;
 	long insert_prefix_time     = 0;
+	long search_prefix_conversion_time = 0;
+	int search_prefix_count = 0;
+	int store_prefix_count = 0;
 
 	vector<NearestInfo> QueueCopy(KnnQueue &k_queue);
 	int GetDistance(Point point, Point centroid);

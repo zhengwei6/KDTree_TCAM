@@ -74,17 +74,32 @@ void KdTreeH::print_points(int i)
 
 void KdTreeH::print_leaf_node_num()
 {
-	cout << "leaf_nodes_: " << leaf_nodes_.size() << endl;	
+	cout << "leaf node number: " << leaf_nodes_.size() << endl;	
 }
 
 void KdTreeH::print_prefix_conversion_time()
 {
-	cout << "prefix_conversion_time: " << (prefix_conversion_time * 1000.0) / CLOCKS_PER_SEC  << endl;
+	cout << "prefix_conversion_time: " << (prefix_conversion_time * 1000.0) / CLOCKS_PER_SEC << " ms"  << endl;
 } 
 
 void KdTreeH::print_insert_prefix_time()
 {
-	cout << "insert_prefix_time: " << (insert_prefix_time * 1000.0) / CLOCKS_PER_SEC << endl;
+	cout << "insert_prefix_time: " << (insert_prefix_time * 1000.0) / CLOCKS_PER_SEC << " ms"<< endl;
+}
+
+void KdTreeH::print_search_prefix_conversion_time()
+{
+	cout << "search_prefix_conversion_time: " << (search_prefix_conversion_time * 1000.0) / CLOCKS_PER_SEC << " ms"<< endl;
+}
+
+void KdTreeH::print_search_prefix_count()
+{
+	cout << "search_prefix_count: " << search_prefix_count << endl; 
+}
+
+void KdTreeH::print_store_prefix_count()
+{
+	cout << "store_prefix_count: " << store_prefix_count << endl;
 }
 
 void KdTreeH::NearestKSearchTCAM(Point query, int knn, vector<NearestInfo> &k_elements)
@@ -136,9 +151,14 @@ void KdTreeH::NearestKSearchTCAM(Point query, int knn, vector<NearestInfo> &k_el
 	// direction conversion
 	clock_t c_start, c_end;
 	
+	c_start = clock();
 	DirectConversion(x_range.second, x_range.first, prefix_range_x);
 	DirectConversion(y_range.second, y_range.first, prefix_range_y);
 	DirectConversion(z_range.second, z_range.first, prefix_range_z);
+	c_end   = clock();
+	search_prefix_conversion_time += (c_end - c_start);
+	search_prefix_count += prefix_range_x.size() + prefix_range_y.size() + prefix_range_z.size();
+
 	// dim1 search dim2 search dim3 search
 	prefix_trie_dim1.SearchRangeV2(prefix_range_x, res_index_x);
 	prefix_trie_dim2.SearchRangeV2(prefix_range_y, res_index_y);
@@ -163,7 +183,6 @@ int KdTreeH::NearestKSearch(Point query, int knn,\
 	::vector<int> &k_indices, \
 	::vector<int> &k_Dists)
 {
-	clock_t c_start, c_end;
 	long brute_force_search_time = 0;
 	long back_track_time = 0;
 	
@@ -172,62 +191,25 @@ int KdTreeH::NearestKSearch(Point query, int knn,\
 	
 	NodePtr cur_node = root_node_;
 	
-	c_start = clock();
 	cur_node = TraverseTree(cur_node, query, backtrack_stack);
-	c_end   = clock();
 
-	back_track_time +=  (c_end - c_start) ;
-
-	c_start = clock();
 	BruteForceKSearch(cur_node->index_list, query, k_indices, k_Dists);
-	c_end   = clock();
-	cout << "Traverse to first point " << endl;
-	print_points(k_indices[0]);
-	cout << "Dist to first data point: " << k_Dists[0] << endl ;
-	cout << "Backtrack stack size: " << backtrack_stack.size() << endl << endl;
-	brute_force_search_time += (c_end - c_start);
 	for(;backtrack_stack.size();)
 	{
-		cout << "Backtrack" << endl;
 		cur_node = backtrack_stack.back();
 		backtrack_stack.pop_back();
 		int Dist_min_ = k_Dists[0];
-		cout << "check intersection" << endl;
 		bool visit_ = CheckIntersection(query, Dist_min_, cur_node);
-		// test
-		cout << "Dim1: " << (cur_node->bbox)[0].low << " " << (cur_node->bbox)[0].high << endl;
-		cout << "Dim2: " << (cur_node->bbox)[1].low << " " << (cur_node->bbox)[1].high << endl;
-		cout << "Dim3: " << (cur_node->bbox)[2].low << " " << (cur_node->bbox)[2].high << endl;
 		if(visit_)
 		{
-			cout << "Traverse the tree from the node" << endl;
 			back_track += 1;
 			if (cur_node->s_dim != 1) {
-				c_start = clock();
 				cur_node = TraverseTree(cur_node, query, backtrack_stack);
-				c_end   = clock();
-				back_track_time += (c_end - c_start);
 			}
-			c_start = clock();
 			BruteForceKSearch(cur_node->index_list, query, k_indices, k_Dists);
-			c_end   = clock();
-			brute_force_search_time += (c_end - c_start);
-			//cout << brute_force_search_time << endl;
 		}
-		else {
-			cout << "Prune the node" << endl;
-		}
-		cout << endl;
+
 	}
-
-	back_track_time 		= (back_track_time * (1000.0)) / CLOCKS_PER_SEC;
-	brute_force_search_time = (brute_force_search_time * (1000.0)) / CLOCKS_PER_SEC;
-
-	// #ifdef DEBUG
-	cout << "traverse tree time: " << back_track_time << endl;
-	cout << "brute force time: " << brute_force_search_time << endl;
-	// #endif
-	cout << "back_track: " << back_track << endl;
 	return back_track;
 }
 
@@ -240,18 +222,18 @@ void KdTreeH::BruteForceKSearchV2(::vector<int> *ind, Point query, \
 		Dist_ = Dist(query, (*points_)[ (*ind)[i] ]);
 		if(k_priority_queue.size() >= knn && Dist_ < k_priority_queue.top().second) {
 			k_priority_queue.pop();
-			k_priority_queue.push(::make_pair((*ind)[i], Dist_));
+			k_priority_queue.push(make_pair((*ind)[i], Dist_));
 		}
 		else if(k_priority_queue.size() < knn) {
-			k_priority_queue.push(::make_pair((*ind)[i], Dist_));
+			k_priority_queue.push(make_pair((*ind)[i], Dist_));
 		}
 	}
 	return;
 }
 
-void KdTreeH::BruteForceKSearch(::vector<int> ind, Point query, \
-	::vector<int> &k_indices, \
-	::vector<int> &k_Dists)
+void KdTreeH::BruteForceKSearch(vector<int> ind, Point query, \
+	vector<int> &k_indices, \
+	vector<int> &k_Dists)
 {
 	int Dist_ = 0;
 	for (int i = 0; i < ind.size() ; i++) 
@@ -273,6 +255,7 @@ void KdTreeH::BruteForceKSearch(::vector<int> ind, Point query, \
 			k_Dists.push_back(Dist_);
 		}
 	}
+	return;
 }
 
 ::vector<KdTreeH::NearestInfo> KdTreeH::QueueCopy(KnnQueue &k_queue)
@@ -307,6 +290,7 @@ KdTreeH::NodePtr KdTreeH::DivideTreeV1(int left, int right, vector<Interval> *bb
 	if(count <= max_leaf_size_) {
 		node->s_dim = -1;
 		node->s_val = -1;
+		leaf_nodes_.push_back(node);
 		node->leaf_idx = leaf_nodes_.size() - 1;
 		return node;
 	}
@@ -369,6 +353,7 @@ KdTreeH::NodePtr KdTreeH::DivideTree(int left, int right, ::vector<Interval> *bb
 			c_end   = clock();
 			 
 			prefix_conversion_time += (c_end - c_start);
+			store_prefix_count += prefix_range.size();
 			for (int j = 0 ; j < prefix_range.size() ; j++) {
 				c_start = clock();
 				InsertPrefixTrieDim(i, prefix_range[j].first << prefix_range[j].second , prefix_range[j].second, node->leaf_idx);		
@@ -556,7 +541,6 @@ KdTreeH::NodePtr KdTreeH::TraverseTree(NodePtr cur_node, Point query, \
 
 bool KdTreeH::CheckIntersection(Point query, int radius, NodePtr cur_node)
 {
-	cout << "radius: "<< radius << endl;
 	int Dist_squared = radius * radius;
 	
 	int x_min = (cur_node->bbox)[0].low;
@@ -582,7 +566,6 @@ bool KdTreeH::CheckIntersection(Point query, int radius, NodePtr cur_node)
 		Dist_squared -= (query.z - z_min) * (query.z - z_min);
 	else if (query.z > z_max)
 		Dist_squared -= (query.z - z_max) * (query.z - z_max);
-	cout << "Dist_squared: "<< Dist_squared << endl;
 	return Dist_squared > 0;
 }
 
@@ -592,6 +575,8 @@ void KdTreeH::InsertPrefixTrieDim(int dim, int num, int prefix_num, int leaf_ind
 	if(dim == 2) prefix_trie_dim3.InsertPrefixTrieV2(num, prefix_num, leaf_index);
 	return;
 }
+
+
 
 void load_bin(std::string infile, std::vector<Point> & points)
 {
@@ -605,6 +590,7 @@ void load_bin(std::string infile, std::vector<Point> & points)
 	}
 	input.seekg(0, std::ios::beg);
 
+	int p = 0;
 	for (int j=0; input.good() && !input.eof(); j++) {
 		
 		Point_f point; 
@@ -616,7 +602,6 @@ void load_bin(std::string infile, std::vector<Point> & points)
         x = -point.y;
         y = -point.z;
         z = point.x;
-        
 		point_gt.x = (int)((x + 100) * 10);
         point_gt.y = (int)((y + 100) * 10);
         point_gt.z = (int)((z + 100) * 10);
