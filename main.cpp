@@ -153,7 +153,6 @@ int main() {
 	kd_tree_tcam.print_prefix_conversion_time();
 	kd_tree_tcam.print_insert_prefix_time();
 	
-
 	c_start = clock();
 	for(int i = 0 ; i < query_num ; i++) {
 		kd_tree_tcam.NearestKSearchTCAM(points_query[i], 1, k_kd_elements[i]);
