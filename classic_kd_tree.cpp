@@ -39,6 +39,23 @@ void KDTreeHClassic::NearestKSearch(Point query, int knn, vector<NearestInfo> &k
     return;
 }
 
+// void KDTreeHClassic::BruteForceKSearch(vector<int> *ind, Point query, \
+// 	KnnQueue &k_priority_queue, int knn) {
+// 	int Dist_ = 0;
+// 	int min_value = INT_MAX;
+// 	int min_index = 0;
+// 	for(int i = 0 ; i < (*ind).size() ; i++) {
+// 		Dist_ = Dist(query, (*points_)[ (*ind)[i] ]);
+// 		if(Dist_ < min_value) {
+
+// 			min_index = (*ind)[i];
+// 			min_value = Dist_;
+// 		}
+// 	}
+// 	k_priority_queue.push(make_pair(min_index, Dist_));
+// 	return;
+// }
+
 void KDTreeHClassic::BruteForceKSearch(vector<int> *ind, Point query, \
 	KnnQueue &k_priority_queue, int knn) {
     int Dist_ = 0;

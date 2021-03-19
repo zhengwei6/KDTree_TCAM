@@ -15,7 +15,7 @@ public:
 	void print_store_prefix_count();
 
 protected:
-	virtual NodePtr DivideTree(int left, int right, vector<Interval> *bbox_ptr);
+	NodePtr DivideTree(int left, int right, vector<Interval> *bbox_ptr);
 
 private:
 	vector<PrefixTrie *> prefix_tries_;

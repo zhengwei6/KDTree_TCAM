@@ -17,6 +17,9 @@
 #include "intkd_tree.h"
 #include "classic_kd_tree.h"
 #include "tcam_m3_kd_tree.h"
+#include "tcam_m1_kd_tree.h"
+
+#define SEARCH_QUERY_NUM 10
 
 using namespace std;
 vector<Point> *randomPoints(int number, int min, int max)
@@ -88,29 +91,31 @@ int main() {
 	for(int i = 0 ; i < points_reference.size() ; i++) {
 	 	(*Index).push_back(i);
  	}
-	 
+	
 	cout << "-----------------------------------------------------------------------" << endl;
-
+	vector<int> ans_index;
 	cout << "Brute Force Search" << endl;
-	KdTreeH::KnnQueue kd_queue;
+
 	KDTreeHClassic classic_kd_tree_b(points_reference_ptr, Index, 10, 10);
 	c_start = clock();
-	for(int i = 0 ; i < query_num ; i++) {
+	for(int i = 0 ; i < SEARCH_QUERY_NUM ; i++) {
+		KdTreeH::KnnQueue kd_queue;
 		classic_kd_tree_b.BruteForceKSearch(Index, points_query[i], kd_queue, 1);
-		if(i == 0) {
-			cout << "Ans: ";
-			classic_kd_tree_b.print_points(kd_queue.top().first);
-		}
+		ans_index.push_back(kd_queue.top().first);
 	}
-
 	c_end = clock();
+	
+	for(int j = 0 ; j < SEARCH_QUERY_NUM ; j++) {
+		classic_kd_tree_b.print_points(ans_index[j]);
+	}
 	cout << "Complete" << endl;
 	cout << "Brute force search time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
 	cout << "Ans: ";
 
 	cout << "-----------------------------------------------------------------------" << endl;
 
-	k_kd_elements.resize(query_num);
+	k_kd_elements.clear();
+	k_kd_elements.resize(SEARCH_QUERY_NUM);
 	int back_track = 0;
 	cout << "Classic KD Tree Nearest Neighbor Search" << endl;
 	KDTreeHClassic classic_kd_tree(points_reference_ptr, Index, 10, 10);
@@ -121,20 +126,37 @@ int main() {
 	classic_kd_tree.print_leaf_node_num();
 	cout << "Classic KD Tree search...";
 	c_start = clock();
-	for(int i = 0 ; i < query_num ; i++) {
+	for(int i = 0 ; i < SEARCH_QUERY_NUM ; i++) {
 		classic_kd_tree.NearestKSearch(points_query[i], 1, k_kd_elements[i]);
 	}
 	c_end   = clock();
 	cout << "Backtrack: " << classic_kd_tree.back_track << endl;
 	cout << "Complete" << endl;
 	cout << "Classic KD Tree search time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
-	cout << "Ans: ";
-	classic_kd_tree.print_points(k_kd_elements[0][0].first);
+	cout << "Ans: " << endl;
+	for(int i = 0 ; i < SEARCH_QUERY_NUM ; i++) {
+		classic_kd_tree.print_points(k_kd_elements[i][0].first);
+	}
 
 	cout << "-----------------------------------------------------------------------" << endl;
 
-	k_kd_elements.resize(query_num);
-	cout << "KD Tree Nearest Neighbor Search with TCAM" << endl;
+	k_kd_elements.clear();
+	k_kd_elements.resize(SEARCH_QUERY_NUM);
+	cout << "KD Tree Nearest Neighbor Search M1 with TCAM" << endl;
+	KdTreeHTCAM_M1 tcam_m1_kd_tree(points_reference_ptr, Index, 10, 10);
+	tcam_m1_kd_tree.BuildKDTree();
+	for(int i = 0 ; i < SEARCH_QUERY_NUM ; i++) {
+		tcam_m1_kd_tree.NearestKSearch(points_query[i], 1, k_kd_elements[i]);
+	}
+	for(int i = 0 ; i < SEARCH_QUERY_NUM ; i++) {
+		tcam_m1_kd_tree.print_points(k_kd_elements[i][0].first);
+	}
+
+	cout << "-----------------------------------------------------------------------" << endl;
+
+	k_kd_elements.clear();
+	k_kd_elements.resize(SEARCH_QUERY_NUM);
+	cout << "KD Tree Nearest Neighbor Search M3 with TCAM" << endl;
 	KdTreeHTCAM_M3 tcam_kd_tree(points_reference_ptr, Index, 10, 10);
 	c_start = clock();
 	tcam_kd_tree.BuildKDTree();
@@ -143,7 +165,7 @@ int main() {
 	cout << "Building Tree: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
 
 	c_start = clock();
-	for(int i = 0 ; i < query_num ; i++) {
+	for(int i = 0 ; i < SEARCH_QUERY_NUM ; i++) {
 		tcam_kd_tree.NearestKSearch(points_query[i], 1, k_kd_elements[i]);
 	}
 	c_end   = clock();
@@ -151,7 +173,9 @@ int main() {
 	tcam_kd_tree.print_search_prefix_count();
 	cout << "total search time: " << 1000.0 * (c_end - c_start) / CLOCKS_PER_SEC << " ms\n";
 	cout << "Ans: ";
-	tcam_kd_tree.print_points(k_kd_elements[0][0].first);
+	for(int i = 0 ; i < SEARCH_QUERY_NUM ; i++) {
+		tcam_kd_tree.print_points(k_kd_elements[i][0].first);
+	}
 
 	cout << "-----------------------------------------------------------------------" << endl;
 	return 1;

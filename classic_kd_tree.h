@@ -1,6 +1,7 @@
 #ifndef CLASSIC_TREE_H
 #define CLASSIC_TREE_H
 #include "intkd_tree.h"
+#include "limits.h"
 
 class KDTreeHClassic : public KdTreeH {
 public:

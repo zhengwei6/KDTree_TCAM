@@ -1,4 +1,3 @@
-
 #include "tcam_m3_kd_tree.h"
 
 KdTreeHTCAM_M3::KdTreeHTCAM_M3(vector <Point> *points_ptr, vector <int> *index_ptr, int max_leaf_size, int para_NN): KdTreeH::KdTreeH(points_ptr, index_ptr, max_leaf_size, para_NN), prefix_trie_dim1(), prefix_trie_dim2(), prefix_trie_dim3(), prefix_conversion_time(0) {
@@ -15,7 +14,6 @@ void KdTreeHTCAM_M3::BuildKDTree() {
     ComputeBoundingBox(left, right, bbox);
     bbox_ptr = &bbox;
     root_node_ = DivideTree(left, right, bbox_ptr);
-
 }
 
 KdTreeH::NodePtr KdTreeHTCAM_M3::DivideTree(int left, int right, ::vector<Interval> *bbox_ptr) {
